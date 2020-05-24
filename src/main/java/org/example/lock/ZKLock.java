@@ -15,38 +15,33 @@ import java.util.concurrent.CountDownLatch;
 public class ZKLock implements DistributedLock, AsyncCallback.StringCallback,
         AsyncCallback.ChildrenCallback, Watcher {
     private static Logger logger = Logger.getLogger(ZKLock.class);
-    /**
-     * zookeeper server
-     */
+
+    static {
+        zk = ZKUtil.getZK();
+    }
+
     private static ZooKeeper zk;
     /**
      * zookeeper回调时的默认上下文
      */
     private static String CTX = "ctx";
-
-    private static int DEFAULT_LATCH = 1;
     /**
      * 标记锁重入次数
      */
     private int reentrant = 0;
 
-    private CountDownLatch latch = new CountDownLatch(DEFAULT_LATCH);
+    private CountDownLatch latch = new CountDownLatch(1);
     /**
      * 在zookeeper中锁节点的名称
      */
     private String lockName;
-
+    /**
+     * 当前线程名称
+     */
     private String threadName;
 
     public void setThreadName(String threadName) {
         this.threadName = threadName;
-    }
-
-    /**
-     *  注入zk资源
-     */
-    static {
-        zk = ZKUtil.getZK();
     }
 
     /**
@@ -60,7 +55,7 @@ public class ZKLock implements DistributedLock, AsyncCallback.StringCallback,
         try {
             // 判断是否重入锁
             if (isReentrantLock()) {
-                latch = new CountDownLatch(++reentrant + DEFAULT_LATCH);
+                reentrant++;
             } else {
                 zk.create(String.format("/%s-", threadName), threadName.getBytes(),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL, this, CTX);
